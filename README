@@ -1,0 +1,7 @@
+psg2bas by Oscar Toledo G. http://nanochess.org/
+Last updated: Feb/24/2018
+
+psg2bas is an utility to convert PSG log files created by the
+CoolCV Colecovision emulator into data compilable by IntyBASIC
+for Intellivision consoles.
+
