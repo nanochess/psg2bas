@@ -10,6 +10,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 double psg_vol[16];
 double psg2_vol[16];
@@ -37,9 +38,15 @@ int main(int argc, char *argv[])
 	int prev_vb, curr_vb;
 	int prev_c, curr_c;
 	int prev_vc, curr_vc;
+	int disabled;
 
-	if (argc != 3) {
-		fprintf(stderr, "Usage: psg2data psg.txt psg.bas\n");
+	if (argc < 3) {
+		fprintf(stderr, "psg2bas v0.1 http://nanochess.org/\n");
+		fprintf(stderr, "\n");
+		fprintf(stderr, "Usage: psg2bas [-a] [-b] [-c] psg.txt psg.bas\n");
+		fprintf(stderr, "\n");
+		fprintf(stderr, "The options allows to disable indicated channel for output\n");
+		fprintf(stderr, "\n");
 		exit(1);
 	}
 
@@ -67,6 +74,8 @@ int main(int argc, char *argv[])
 
 	/*
 	** Generate a conversion table
+	** input index - SN76489 volume
+	** output - AY-3-8910 volume
 	*/
 	for (c = 0; c < 16; c++) {
 		vol = psg_vol[c];
@@ -81,14 +90,44 @@ int main(int argc, char *argv[])
 		psg_conv[c] = e;
 	}
 
-	input = fopen(argv[1], "r");
-	if (input == NULL) {
-		fprintf(stderr, "Unable to open input %s\n", argv[1]);
+	/*
+	** Process arguments
+	*/
+	disabled = 0;
+	c = 1;
+	while (c < argc) {
+		if (argv[c][0] != '-')
+			break;
+		d = tolower(argv[c][1]);
+		if (d == 'a')
+			disabled |= 1;
+		else if (d == 'b')
+			disabled |= 2;
+		else if (d == 'c')
+			disabled |= 4;
+		else {
+			fprintf(stderr, "unknown option in command-line\n");
+			exit(1);
+		}
+		c++;
+	}
+	if (c >= argc)	{
+		fprintf(stderr, "Input filename not provided\n");
 		exit(1);
 	}
-	output = fopen(argv[2], "w");
+	input = fopen(argv[c], "r");
+	if (input == NULL) {
+		fprintf(stderr, "Unable to open input %s\n", argv[c]);
+		exit(1);
+	}
+	c++;
+	if (c >= argc)	{
+		fprintf(stderr, "Output filename not provided\n");
+		exit(1);
+	}
+	output = fopen(argv[c], "w");
 	if (output == NULL) {
-		fprintf(stderr, "Unable to open output %s\n", argv[2]);
+		fprintf(stderr, "Unable to open output %s\n", argv[c]);
 		exit(1);
 	}
 	prev_a = -1;
@@ -112,21 +151,21 @@ int main(int argc, char *argv[])
 		c = 0;
 		sprintf(buffer2, "\tDATA $0000,");
 		ap = buffer2 + 11;
-		if (prev_va != curr_va || (prev_a != curr_a && prev_va != 0)) {
+		if ((disabled & 1) == 0 && (prev_va != curr_va || (prev_a != curr_a && prev_va != 0))) {
 			sprintf(ap, ",$%04x", curr_va | curr_a << 4);
 			ap += 6;
 			c |= 1;
 			prev_va = curr_va;
 			prev_a = curr_a;
 		}
-		if (prev_vb != curr_vb || (prev_b != curr_b && prev_vb != 0)) {
+		if ((disabled & 2) == 0 && (prev_vb != curr_vb || (prev_b != curr_b && prev_vb != 0))) {
 			sprintf(ap, ",$%04x", curr_vb | curr_b << 4);
 			ap += 6;
 			c |= 2;
 			prev_vb = curr_vb;
 			prev_b = curr_b;
 		}
-		if (prev_vc != curr_vc || (prev_c != curr_c && prev_vc != 0)) {
+		if ((disabled & 4) == 0 && (prev_vc != curr_vc || (prev_c != curr_c && prev_vc != 0))) {
 			sprintf(ap, ",$%04x", curr_vc | curr_c << 4);
 			ap += 6;
 			c |= 4;
